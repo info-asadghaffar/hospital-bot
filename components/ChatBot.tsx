@@ -11,7 +11,7 @@ import { ShimmeringText } from "@/components/ui/shimmering-text"
 import { useRouter } from "next/navigation"
 
 const DEFAULT_AGENT = {
-    agentId: `agent_9501kdnmqvtyfhzb8592yy8peder`,
+    agentId: `agent_9601kdr7btebe1aa0vkr9yjf3p6n`,
     name: "Life Saver",
     description: "Tap phone to start voice chat",
 }
