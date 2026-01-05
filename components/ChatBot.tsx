@@ -32,7 +32,6 @@ export default function SidebarChatbot() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }
 
-    // Scroll to bottom whenever messages change
     useEffect(() => {
         scrollToBottom()
     }, [messages])
