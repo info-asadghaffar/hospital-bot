@@ -5,6 +5,7 @@ import { useConversation } from "@elevenlabs/react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Loader2Icon, PhoneIcon, PhoneOffIcon } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
 import { Orb } from "@/components/ui/orb"
@@ -22,7 +23,11 @@ type AgentState = "disconnected" | "connecting" | "connected" | "disconnecting" 
 export default function SidebarChatbot() {
     const [agentState, setAgentState] = useState<AgentState>("disconnected")
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
-    const [messages, setMessages] = useState<{ text: string, sender: 'user' | 'bot' }[]>([
+    const [messages, setMessages] = useState<{
+        text: string,
+        sender: 'user' | 'bot' | 'system',
+        isSupport?: boolean
+    }[]>([
         { text: "Welcome to our website!", sender: 'bot' },
         { text: "What brought you to our website today?", sender: 'bot' }
     ])
@@ -31,6 +36,8 @@ export default function SidebarChatbot() {
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const [sessionId] = useState(() => Math.random().toString(36).substring(2) + Date.now().toString(36))
+
+    const [supportActive, setSupportActive] = useState(false)
     const router = useRouter()
 
     const scrollToBottom = () => {
@@ -41,34 +48,47 @@ export default function SidebarChatbot() {
         scrollToBottom()
     }, [messages])
 
-    const processBotResponse = (text: string) => {
-        const MAX_CHUNK_LENGTH = 200;
+    const processBotResponse = async (text: string, isSupport: boolean = false) => {
+        const MAX_CHUNK_LENGTH = 100;
+
+        let chunks: string[] = [];
 
         if (text.length <= MAX_CHUNK_LENGTH) {
-            setMessages(prev => [...prev, { text, sender: 'bot' }])
-            return
-        }
+            chunks = [text];
+        } else {
+            // Split by sentence endings (. ! ?)
+            const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+            let currentChunk = "";
 
-        // Split by sentence endings (. ! ?)
-        const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
-        const chunks: string[] = [];
-        let currentChunk = "";
-
-        sentences.forEach(sentence => {
-            if ((currentChunk + sentence).length > MAX_CHUNK_LENGTH && currentChunk.length > 0) {
+            sentences.forEach(sentence => {
+                if ((currentChunk + sentence).length > MAX_CHUNK_LENGTH && currentChunk.length > 0) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = sentence;
+                } else {
+                    currentChunk += sentence;
+                }
+            });
+            if (currentChunk.trim()) {
                 chunks.push(currentChunk.trim());
-                currentChunk = sentence;
-            } else {
-                currentChunk += sentence;
             }
-        });
-        if (currentChunk.trim()) {
-            chunks.push(currentChunk.trim());
         }
 
-        // Add chunks to messages
-        const newMessages = chunks.map(chunk => ({ text: chunk, sender: 'bot' } as const));
-        setMessages(prev => [...prev, ...newMessages]);
+        // Process chunks with delay
+        let activeIsSupport = isSupport || supportActive;
+        for (const chunk of chunks) {
+            setIsLoading(true);
+
+            // Check if this chunk switches identity to Priyanshu
+            if (!activeIsSupport && chunk.toLowerCase().includes("priyanshu")) {
+                activeIsSupport = true;
+                setSupportActive(true);
+            }
+
+            // Wait for 1 second to show typing effect
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            setMessages(prev => [...prev, { text: chunk, sender: 'bot', isSupport: activeIsSupport }]);
+            setIsLoading(false);
+        }
     }
 
     const sendMessageToBot = async (text: string) => {
@@ -101,7 +121,7 @@ export default function SidebarChatbot() {
                 botText = data[0].output
             }
 
-            processBotResponse(botText)
+            await processBotResponse(botText)
 
         } catch (error) {
             console.error("Chat Error:", error)
@@ -123,10 +143,23 @@ export default function SidebarChatbot() {
         await sendMessageToBot(userMessage)
     }
 
-    const handleOptionClick = (optionText: string) => {
+    const handleOptionClick = async (optionText: string) => {
         setMessages(prev => [...prev, { text: optionText, sender: 'user' }])
         setShowStarterOptions(false)
-        sendMessageToBot(optionText)
+
+        if (optionText === "I want to chat with your support team") {
+            setIsLoading(true)
+            await processBotResponse("Please hold on for a moment.")
+
+            // Wait for 2 seconds
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            setMessages(prev => [...prev, { text: "Priyanshu Sharma joined conversation", sender: 'system' }])
+
+            // Show Priyanshu's message
+            await processBotResponse("I'm Priyanshu Sharma", true)
+        } else {
+            sendMessageToBot(optionText)
+        }
     }
 
     const conversation = useConversation({
@@ -210,7 +243,7 @@ export default function SidebarChatbot() {
                                     <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 ring-2 ring-white"></div>
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-sm text-gray-900 tracking-tight">Jyson</h3>
+                                    <h3 className="font-semibold text-sm text-gray-900 tracking-tight">Jayson</h3>
                                     {/* <p className="text-[10px] text-gray-500 font-medium">Always here to help</p> */}
                                 </div>
                             </div>
@@ -241,37 +274,58 @@ export default function SidebarChatbot() {
                                     </div>
                                 </div>
                             ) : (
-                                messages.map((msg, index) => (
-                                    <div
-                                        key={index}
-                                        className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        <div
-                                            className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'user'
-                                                ? 'bg-black text-white rounded-br-none'
-                                                : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'
-                                                }`}
-                                        >
-                                            <ReactMarkdown
-                                                components={{
-                                                    a: (props) => (
-                                                        <a
-                                                            {...props}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-500 underline break-all hover:text-blue-600"
-                                                        />
-                                                    ),
-                                                    p: (props) => <p {...props} className="break-words" />
-                                                }}
-                                            >
-                                                {msg.text}
-                                            </ReactMarkdown>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
+                                messages.map((msg, index) => {
+                                    if (msg.sender === 'system') {
+                                        return (
+                                            <div key={index} className="flex items-center w-full my-4 gap-4 px-4">
+                                                <div className="h-px bg-gray-200 flex-1"></div>
+                                                <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest bg-white/50 px-2 rounded-lg backdrop-blur-sm whitespace-nowrap">{msg.text}</span>
+                                                <div className="h-px bg-gray-200 flex-1"></div>
+                                            </div>
+                                        )
+                                    }
 
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            {msg.sender === 'bot' && (
+                                                <div className={`w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 shadow-sm flex items-center justify-center ${msg.isSupport ? 'bg-indigo-100 text-indigo-600' : ''}`}>
+                                                    {msg.isSupport ? (
+                                                        <span className="text-xs font-bold">PS</span>
+                                                    ) : (
+                                                        <img src="/jyson-avatar.png" alt="Jyson" className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div
+                                                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'user'
+                                                    ? 'bg-black text-white rounded-br-none'
+                                                    : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'
+                                                    }`}
+                                            >
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        a: (props) => (
+                                                            <a
+                                                                {...props}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-500 underline break-all hover:text-blue-600"
+                                                            />
+                                                        ),
+                                                        p: (props) => <p {...props} className="break-words" />
+                                                    }}
+                                                >
+                                                    {msg.text}
+                                                </ReactMarkdown>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
                             {showStarterOptions && (
                                 <div className="flex flex-col gap-2 items-end animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     {[
@@ -279,7 +333,8 @@ export default function SidebarChatbot() {
                                         "I'm looking for CPR/ First Aid Courses",
                                         "I'm looking for PALS/ACLS Courses",
                                         "I want to chat with your sales team",
-                                        "I want to chat with your support team"
+                                        "I want to chat with your support team",
+                                        "Others"
                                     ].map((option, idx) => (
                                         <button
                                             key={idx}
@@ -293,7 +348,14 @@ export default function SidebarChatbot() {
                             )}
 
                             {isLoading && (
-                                <div className="flex justify-start">
+                                <div className="flex justify-start items-end gap-2">
+                                    <div className={`w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 shadow-sm flex items-center justify-center ${supportActive ? 'bg-indigo-100 text-indigo-600' : ''}`}>
+                                        {supportActive ? (
+                                            <span className="text-xs font-bold">PS</span>
+                                        ) : (
+                                            <img src="/jyson-avatar.png" alt="Jyson" className="w-full h-full object-cover" />
+                                        )}
+                                    </div>
                                     <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm flex gap-1 items-center">
                                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
