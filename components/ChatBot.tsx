@@ -94,14 +94,14 @@ export default function SidebarChatbot() {
     const sendMessageToBot = async (text: string) => {
         setIsLoading(true)
         try {
-            const response = await fetch("https://learntastic.app.n8n.cloud/webhook/d0c27b4b-f070-47e8-8101-b472128e6af5/chat", {
+            const response = await fetch("https://learntastic.app.n8n.cloud/webhook/502b1e78-9f5f-4359-a5b4-fb57d5bcd167/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({ chatInput: text, sessionId }),
             })
-
+            console.log("Bot Response:", response)
             if (!response.ok) {
                 throw new Error("Failed to send message")
             }
