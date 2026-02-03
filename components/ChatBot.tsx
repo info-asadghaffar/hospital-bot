@@ -38,6 +38,7 @@ export default function SidebarChatbot() {
     const [sessionId] = useState(() => Math.random().toString(36).substring(2) + Date.now().toString(36))
 
     const [supportActive, setSupportActive] = useState(false)
+    const [inputError, setInputError] = useState<string | null>(null)
     const router = useRouter()
 
     const scrollToBottom = () => {
@@ -49,15 +50,16 @@ export default function SidebarChatbot() {
     }, [messages])
 
     const processBotResponse = async (text: string, isSupport: boolean = false) => {
-        const MAX_CHUNK_LENGTH = 100;
+        const MAX_CHUNK_LENGTH = 250;
 
         let chunks: string[] = [];
 
         if (text.length <= MAX_CHUNK_LENGTH) {
             chunks = [text];
         } else {
-            // Split by sentence endings (. ! ?)
-            const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+            // Split by sentence endings (. ! ?) followed by space or end of string
+            // This prevents splitting inside URLs (e.g., domain.com)
+            const sentences = text.match(/(?:[^.!?]+|[.!?](?!\s|$))+[.!?](?=\s|$)|.+/g) || [text];
             let currentChunk = "";
 
             sentences.forEach(sentence => {
@@ -135,6 +137,27 @@ export default function SidebarChatbot() {
         e.preventDefault()
         if (!inputValue.trim()) return
 
+        // Validation logic
+        const lastBotMessage = [...messages].reverse().find(msg => msg.sender === 'bot')?.text.toLowerCase() || "";
+        const isEmailPrompt = lastBotMessage.includes("email") || lastBotMessage.includes("e-mail");
+        const isPhonePrompt = lastBotMessage.includes("phone number");
+
+        if (isEmailPrompt) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(inputValue.trim())) {
+                setInputError("invalid text");
+                return;
+            }
+        } else if (isPhonePrompt) {
+            // allows digits, spaces, hyphens, plus, and parentheses, min 7 chars
+            const phoneRegex = /^[\d\s\-\+\(\)]{7,}$/;
+            if (!phoneRegex.test(inputValue.trim())) {
+                setInputError("invalid text");
+                return;
+            }
+        }
+
+        setInputError(null)
         const userMessage = inputValue.trim()
         setMessages(prev => [...prev, { text: userMessage, sender: 'user' }])
         setInputValue("")
@@ -230,7 +253,7 @@ export default function SidebarChatbot() {
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        className="fixed bottom-24 right-5 z-50 w-[380px] h-[600px] max-h-[80vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100/50 transform-gpu"
+                        className="fixed bottom-24 right-5 z-50 w-[450px] h-[600px] max-h-[80vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-100/50 transform-gpu"
                         style={{ boxShadow: "0 20px 40px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0,0,0,0.04)" }}
                     >
                         {/* Header */}
@@ -243,8 +266,7 @@ export default function SidebarChatbot() {
                                     <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 ring-2 ring-white"></div>
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-sm text-gray-900 tracking-tight">Jayson</h3>
-                                    {/* <p className="text-[10px] text-gray-500 font-medium">Always here to help</p> */}
+                                    <h3 className="font-semibold text-xs text-gray-900 tracking-tight">Jayson</h3>
                                 </div>
                             </div>
                             <Button
@@ -259,11 +281,11 @@ export default function SidebarChatbot() {
                         </div>
 
                         {/* Messages Area */}
-                        <div className="flex-1 p-6 bg-gradient-to-b from-gray-50 to-white overflow-y-auto flex flex-col gap-4">
+                        <div className="flex-1 p-6 bg-white overflow-y-auto flex flex-col gap-4">
                             {/* Empty state removed since we have initial messages now, but keeping the logic clean if user clears history potentially */}
                             {messages.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-forwards">
-                                    <div className="w-16 h-16 bg-gradient-to-tr from-gray-100 to-gray-50 rounded-2xl flex items-center justify-center shadow-inner mb-2 transform rotate-3">
+                                    <div className="w-16 h-16 bg-[#F4F4F4] rounded-2xl flex items-center justify-center shadow-inner mb-2 transform rotate-3">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-gray-400"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
                                     </div>
                                     <div className="space-y-1">
@@ -300,9 +322,9 @@ export default function SidebarChatbot() {
                                                 </div>
                                             )}
                                             <div
-                                                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'user'
+                                                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-sm ${msg.sender === 'user'
                                                     ? 'bg-black text-white rounded-br-none'
-                                                    : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'
+                                                    : 'bg-[#F4F4F4] text-gray-800 rounded-bl-none'
                                                     }`}
                                             >
                                                 <ReactMarkdown
@@ -339,7 +361,7 @@ export default function SidebarChatbot() {
                                         <button
                                             key={idx}
                                             onClick={() => handleOptionClick(option)}
-                                            className="text-right text-sm text-blue-500 border border-blue-400 rounded-2xl rounded-br-none px-4 py-2 hover:bg-blue-50 transition-colors bg-white max-w-[85%]"
+                                            className="text-right text-xs text-blue-500 border border-blue-400 rounded-2xl rounded-br-none px-4 py-1.5 hover:bg-blue-50 transition-colors bg-white max-w-[85%]"
                                         >
                                             {option}
                                         </button>
@@ -356,7 +378,7 @@ export default function SidebarChatbot() {
                                             <img src="/jyson-avatar.png" alt="Jyson" className="w-full h-full object-cover" />
                                         )}
                                     </div>
-                                    <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm flex gap-1 items-center">
+                                    <div className="bg-[#F4F4F4] px-4 py-3 rounded-2xl rounded-bl-none shadow-sm flex gap-1 items-center">
                                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                                         <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
@@ -374,11 +396,19 @@ export default function SidebarChatbot() {
                             >
                                 <input
                                     value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    className="w-full pl-5 pr-12 py-3.5 bg-gray-50 text-sm text-gray-900 placeholder:text-gray-400 rounded-full border-0 focus:ring-1 focus:ring-black/5 focus:bg-white transition-all shadow-sm hover:shadow-md hover:bg-white disabled:opacity-50"
+                                    onChange={(e) => {
+                                        setInputValue(e.target.value);
+                                        if (inputError) setInputError(null);
+                                    }}
+                                    className={`w-full pl-5 pr-12 py-3 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-400 rounded-full border-0 focus:ring-1 focus:ring-black/5 focus:bg-white transition-all shadow-sm hover:shadow-md hover:bg-white disabled:opacity-50 ${inputError ? 'ring-1 ring-red-500 bg-red-50/10' : ''}`}
                                     placeholder="Type your message..."
                                     disabled={isLoading}
                                 />
+                                {inputError && (
+                                    <span className="absolute -bottom-5 left-5 text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200">
+                                        {inputError}
+                                    </span>
+                                )}
                                 <Button
                                     type="submit"
                                     size="icon"
