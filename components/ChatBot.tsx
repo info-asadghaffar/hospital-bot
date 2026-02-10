@@ -143,14 +143,14 @@ export default function SidebarChatbot() {
         const isPhonePrompt = lastBotMessage.includes("phone number");
 
         if (isEmailPrompt) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const emailRegex = /[^\s@]+@[^\s@]+\.[^\s@]+/;
             if (!emailRegex.test(inputValue.trim())) {
                 setInputError("invalid text");
                 return;
             }
         } else if (isPhonePrompt) {
             // allows digits, spaces, hyphens, plus, and parentheses, min 7 chars
-            const phoneRegex = /^[\d\s\-\+\(\)]{7,}$/;
+            const phoneRegex = /[\d\s\-\+\(\)]{7,}/;
             if (!phoneRegex.test(inputValue.trim())) {
                 setInputError("invalid text");
                 return;
