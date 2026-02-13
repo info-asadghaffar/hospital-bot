@@ -348,7 +348,7 @@ export default function SidebarChatbot() {
                                     )
                                 })
                             )}
-                            {showStarterOptions && (
+                            {/* {showStarterOptions && (
                                 <div className="flex flex-col gap-2 items-end animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     {[
                                         "I am looking for a group discount",
@@ -367,7 +367,7 @@ export default function SidebarChatbot() {
                                         </button>
                                     ))}
                                 </div>
-                            )}
+                            )} */}
 
                             {isLoading && (
                                 <div className="flex justify-start items-end gap-2">
