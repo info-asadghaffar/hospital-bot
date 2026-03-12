@@ -4,8 +4,7 @@ import { useCallback, useState, useRef, useEffect } from "react"
 import { useConversation } from "@elevenlabs/react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Loader2Icon, PhoneIcon, PhoneOffIcon } from "lucide-react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from 'remark-gfm'
+
 
 import { Button } from "@/components/ui/button"
 import { Orb } from "@/components/ui/orb"
@@ -100,7 +99,9 @@ export default function SidebarChatbot() {
 
             // Wait for 1 second to show typing effect
             await new Promise(resolve => setTimeout(resolve, 2000));
-            setMessages(prev => [...prev, { text: chunk, sender: 'bot', isSupport: activeIsSupport }]);
+            // Replace literal \n strings (backslash-n) with actual newlines
+            const formattedChunk = chunk.replace(/\\n/g, "\n");
+            setMessages(prev => [...prev, { text: formattedChunk, sender: 'bot', isSupport: activeIsSupport }]);
             setIsLoading(false);
         }
     }
@@ -334,27 +335,12 @@ export default function SidebarChatbot() {
                                                 </div>
                                             )}
                                             <div
-                                                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-sm ${msg.sender === 'user'
+                                                className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-sm whitespace-pre-wrap ${msg.sender === 'user'
                                                     ? 'bg-black text-white rounded-br-none'
                                                     : 'bg-[#F4F4F4] text-gray-800 rounded-bl-none'
                                                     }`}
                                             >
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        a: (props) => (
-                                                            <a
-                                                                {...props}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-blue-500 underline break-all hover:text-blue-600"
-                                                            />
-                                                        ),
-                                                        p: (props) => <p {...props} className="break-words" />
-                                                    }}
-                                                >
-                                                    {msg.text}
-                                                </ReactMarkdown>
+                                                <span className="break-words whitespace-pre-wrap">{msg.text}</span>
                                             </div>
                                         </div>
                                     )
