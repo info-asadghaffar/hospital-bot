@@ -35,6 +35,7 @@ export default function SidebarChatbot() {
     const [inputValue, setInputValue] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
     const [sessionId] = useState(() => Math.random().toString(36).substring(2) + Date.now().toString(36))
 
     const [supportActive, setSupportActive] = useState(false)
@@ -48,6 +49,17 @@ export default function SidebarChatbot() {
     useEffect(() => {
         scrollToBottom()
     }, [messages])
+
+    // Auto-focus input when chat is opened or bot finishes responding
+    useEffect(() => {
+        if (agentState === "chat_active" && !isLoading) {
+            // Use a small timeout to ensure the element is visible/enabled
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [agentState, isLoading])
 
     const processBotResponse = async (text: string, isSupport: boolean = false) => {
         const MAX_CHUNK_LENGTH = 250;
@@ -137,25 +149,25 @@ export default function SidebarChatbot() {
         e.preventDefault()
         if (!inputValue.trim()) return
 
-        // Validation logic
-        const lastBotMessage = [...messages].reverse().find(msg => msg.sender === 'bot')?.text.toLowerCase() || "";
-        const isEmailPrompt = lastBotMessage.includes("email") || lastBotMessage.includes("e-mail");
-        const isPhonePrompt = lastBotMessage.includes("phone number");
+        // Validation logic removed as per request
+        // const lastBotMessage = [...messages].reverse().find(msg => msg.sender === 'bot')?.text.toLowerCase() || "";
+        // const isEmailPrompt = lastBotMessage.includes("email") || lastBotMessage.includes("e-mail");
+        // const isPhonePrompt = lastBotMessage.includes("phone number");
 
-        if (isEmailPrompt) {
-            const emailRegex = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-            if (!emailRegex.test(inputValue.trim())) {
-                setInputError("invalid text");
-                return;
-            }
-        } else if (isPhonePrompt) {
-            // allows digits, spaces, hyphens, plus, and parentheses, min 7 chars
-            const phoneRegex = /[\d\s\-\+\(\)]{7,}/;
-            if (!phoneRegex.test(inputValue.trim())) {
-                setInputError("invalid text");
-                return;
-            }
-        }
+        // if (isEmailPrompt) {
+        //     const emailRegex = /[^\s@]+@[^\s@]+\.[^\s@]+/;
+        //     if (!emailRegex.test(inputValue.trim())) {
+        //         setInputError("invalid text");
+        //         return;
+        //     }
+        // } else if (isPhonePrompt) {
+        //     // allows digits, spaces, hyphens, plus, and parentheses, min 7 chars
+        //     const phoneRegex = /[\d\s\-\+\(\)]{7,}/;
+        //     if (!phoneRegex.test(inputValue.trim())) {
+        //         setInputError("invalid text");
+        //         return;
+        //     }
+        // }
 
         setInputError(null)
         const userMessage = inputValue.trim()
@@ -395,6 +407,7 @@ export default function SidebarChatbot() {
                                 onSubmit={handleSendMessage}
                             >
                                 <input
+                                    ref={inputRef}
                                     value={inputValue}
                                     onChange={(e) => {
                                         setInputValue(e.target.value);
@@ -481,10 +494,10 @@ export default function SidebarChatbot() {
                         </AnimatePresence>
                     </Button>
 
-                    <div className="w-px h-6 bg-gray-200 mx-1"></div>
+                    {/* <div className="w-px h-6 bg-gray-200 mx-1"></div> */}
 
                     {/* Voice Call Button */}
-                    <Button
+                    {/* <Button
                         onClick={handleCall}
                         disabled={isTransitioning || agentState === "chat_active"}
                         size="icon"
@@ -525,7 +538,7 @@ export default function SidebarChatbot() {
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
             {/* Status / Error */}
