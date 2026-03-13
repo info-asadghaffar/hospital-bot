@@ -340,7 +340,17 @@ export default function SidebarChatbot() {
                                                     : 'bg-[#F4F4F4] text-gray-800 rounded-bl-none'
                                                     }`}
                                             >
-                                                <span className="break-words whitespace-pre-wrap">{msg.text}</span>
+                                                <span className="break-words whitespace-pre-wrap">
+                                                    {msg.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => 
+                                                        part.match(/^https?:\/\//) ? (
+                                                            <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">
+                                                                {part}
+                                                            </a>
+                                                        ) : (
+                                                            part
+                                                        )
+                                                    )}
+                                                </span>
                                             </div>
                                         </div>
                                     )
