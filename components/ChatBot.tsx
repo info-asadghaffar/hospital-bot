@@ -19,6 +19,42 @@ const DEFAULT_AGENT = {
 
 type AgentState = "disconnected" | "connecting" | "connected" | "disconnecting" | "chat_active" | null
 
+const renderMessageWithLinks = (text: string) => {
+    const regex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|((?:https?:\/\/|www\.)[^\s]+[^\s.,!?()<>])/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            parts.push({ type: 'text', content: text.substring(lastIndex, match.index) });
+        }
+        
+        if (match[1] && match[2]) {
+            parts.push({ type: 'link', text: match[1], url: match[2] });
+        } else if (match[3]) {
+            const url = match[3];
+            parts.push({ type: 'link', text: url, url: url.startsWith('www.') ? `https://${url}` : url });
+        }
+        
+        lastIndex = match.index + match[0].length;
+    }
+    
+    if (lastIndex < text.length) {
+        parts.push({ type: 'text', content: text.substring(lastIndex) });
+    }
+    
+    return parts.map((part, i) => 
+        part.type === 'link' ? (
+            <a key={i} href={part.url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all font-medium">
+                {part.text}
+            </a>
+        ) : (
+            <span key={i}>{part.content}</span>
+        )
+    );
+};
+
 export default function SidebarChatbot() {
     const [agentState, setAgentState] = useState<AgentState>("disconnected")
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -27,14 +63,14 @@ export default function SidebarChatbot() {
         sender: 'user' | 'bot' | 'system',
         isSupport?: boolean
     }[]>([
-        { text: "Welcome to our website!", sender: 'bot' },
-        { text: "What brought you to our website today?", sender: 'bot' }
+        // { text: "Welcome to our website!", sender: 'bot' },
+        { text: "Hi, I’m Spark, the AI assistant for AHCA. I can help resolve about 90–95% of common question", sender: 'bot' }
     ])
     const [showStarterOptions, setShowStarterOptions] = useState(true)
     const [inputValue, setInputValue] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const messagesEndRef = useRef<HTMLDivElement>(null)
-    const inputRef = useRef<HTMLInputElement>(null)
+    const inputRef = useRef<HTMLTextAreaElement>(null)
     const [sessionId] = useState(() => Math.random().toString(36).substring(2) + Date.now().toString(36))
 
     const [supportActive, setSupportActive] = useState(false)
@@ -146,8 +182,8 @@ export default function SidebarChatbot() {
         }
     }
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const handleSendMessage = async (e?: React.FormEvent | React.KeyboardEvent) => {
+        if (e) e.preventDefault()
         if (!inputValue.trim()) return
 
         // Validation logic removed as per request
@@ -257,6 +293,25 @@ export default function SidebarChatbot() {
         return Math.min(1.0, Math.pow(rawValue, 0.5) * 2.5)
     }, [conversation])
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter') {
+            if (e.shiftKey) {
+                e.preventDefault();
+                setInputValue(prev => prev + '\n');
+            } else {
+                e.preventDefault();
+                handleSendMessage(e);
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+        }
+    }, [inputValue]);
+
     return (
         <>
             {/* Chat Interface Window */}
@@ -341,15 +396,7 @@ export default function SidebarChatbot() {
                                                     }`}
                                             >
                                                 <span className="break-words whitespace-pre-wrap">
-                                                    {msg.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => 
-                                                        part.match(/^https?:\/\//) ? (
-                                                            <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">
-                                                                {part}
-                                                            </a>
-                                                        ) : (
-                                                            part
-                                                        )
-                                                    )}
+                                                    {renderMessageWithLinks(msg.text)}
                                                 </span>
                                             </div>
                                         </div>
@@ -399,19 +446,22 @@ export default function SidebarChatbot() {
                         {/* Input Area */}
                         <div className="p-4 bg-white/80 backdrop-blur-md border-t border-gray-50">
                             <form
-                                className="relative flex items-center"
+                                className="relative flex items-end"
                                 onSubmit={handleSendMessage}
                             >
-                                <input
+                                <textarea
                                     ref={inputRef}
                                     value={inputValue}
                                     onChange={(e) => {
                                         setInputValue(e.target.value);
                                         if (inputError) setInputError(null);
                                     }}
-                                    className={`w-full pl-5 pr-12 py-3 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-400 rounded-full border-0 focus:ring-1 focus:ring-black/5 focus:bg-white transition-all shadow-sm hover:shadow-md hover:bg-white disabled:opacity-50 ${inputError ? 'ring-1 ring-red-500 bg-red-50/10' : ''}`}
+                                    onKeyDown={handleKeyDown}
+                                    className={`w-full pl-5 pr-12 py-3 bg-gray-50 text-xs text-gray-900 placeholder:text-gray-400 rounded-[20px] border-0 focus:ring-1 focus:ring-black/5 focus:bg-white transition-all shadow-sm hover:shadow-md hover:bg-white disabled:opacity-50 resize-none overflow-y-auto leading-relaxed ${inputError ? 'ring-1 ring-red-500 bg-red-50/10' : ''}`}
+                                    style={{ maxHeight: '120px', minHeight: '40px' }}
                                     placeholder="Type your message..."
                                     disabled={isLoading}
+                                    rows={1}
                                 />
                                 {inputError && (
                                     <span className="absolute -bottom-5 left-5 text-[10px] font-medium text-red-500 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -422,7 +472,7 @@ export default function SidebarChatbot() {
                                     type="submit"
                                     size="icon"
                                     disabled={isLoading || !inputValue.trim()}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black text-white hover:bg-gray-800 shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                                    className="absolute right-2 bottom-1 h-8 w-8 rounded-full bg-black text-white hover:bg-gray-800 shadow-md transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
                                 </Button>
