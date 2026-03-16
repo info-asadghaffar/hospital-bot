@@ -63,7 +63,6 @@ export default function SidebarChatbot() {
         sender: 'user' | 'bot' | 'system',
         isSupport?: boolean
     }[]>([
-        
         { text: "Hi, I’m Spark, the AI assistant for AHCA. I can help resolve about 90–95% of common question", sender: 'bot' }
     ])
     const [showStarterOptions, setShowStarterOptions] = useState(true)
